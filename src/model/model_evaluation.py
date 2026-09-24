@@ -55,26 +55,15 @@ logger.addHandler(file_handler)
 def load_model(file_path: str):
     try:
         model = joblib.load(file_path)
-
-        logger.debug(
-            "Model loaded from %s",
-            file_path,
-        )
-
+        logger.debug("Model loaded from %s", file_path)
         return model
 
     except FileNotFoundError:
-        logger.error(
-            "Model file not found: %s",
-            file_path,
-        )
+        logger.error("Model file not found: %s", file_path)
         raise
 
     except Exception as e:
-        logger.error(
-            "Error loading model: %s",
-            e,
-        )
+        logger.error("Error loading model: %s", e)
         raise
 
 
@@ -91,38 +80,21 @@ def load_data(file_path: str) -> pd.DataFrame:
         return df
 
     except pd.errors.ParserError as e:
-        logger.error(
-            "Failed to parse CSV: %s",
-            e,
-        )
+        logger.error("Failed to parse CSV: %s", e)
         raise
 
     except Exception as e:
-        logger.error(
-            "Error loading data: %s",
-            e,
-        )
+        logger.error("Error loading data: %s", e)
         raise
 
 
-def evaluate_model(
-    model,
-    X_test,
-    y_test,
-) -> dict:
-
+def evaluate_model(model, X_test, y_test) -> dict:
     try:
         y_pred = model.predict(X_test)
-
-        y_pred_proba = model.predict_proba(
-            X_test
-        )[:, 1]
+        y_pred_proba = model.predict_proba(X_test)[:, 1]
 
         metrics = {
-            "accuracy": accuracy_score(
-                y_test,
-                y_pred,
-            ),
+            "accuracy": accuracy_score(y_test, y_pred),
             "precision": precision_score(
                 y_test,
                 y_pred,
@@ -144,96 +116,53 @@ def evaluate_model(
             ),
         }
 
-        logger.debug(
-            "Model evaluation completed"
-        )
+        logger.debug("Model evaluation completed")
 
         return metrics
 
     except Exception as e:
-        logger.error(
-            "Error during model evaluation: %s",
-            e,
-        )
+        logger.error("Error during model evaluation: %s", e)
         raise
 
 
-def save_metrics(
-    metrics: dict,
-    file_path: str,
-) -> None:
+def save_metrics(metrics: dict, file_path: str) -> None:
+    os.makedirs(
+        os.path.dirname(file_path),
+        exist_ok=True,
+    )
 
-    try:
-        os.makedirs(
-            os.path.dirname(file_path),
-            exist_ok=True,
-        )
+    with open(file_path, "w") as file:
+        json.dump(metrics, file, indent=4)
 
-        with open(
-            file_path,
-            "w",
-        ) as file:
-            json.dump(
-                metrics,
-                file,
-                indent=4,
-            )
-
-        logger.debug(
-            "Metrics saved to %s",
-            file_path,
-        )
-
-    except Exception as e:
-        logger.error(
-            "Error saving metrics: %s",
-            e,
-        )
-        raise
+    logger.debug("Metrics saved to %s", file_path)
 
 
 def save_model_info(
     run_id: str,
-    model_path: str,
+    model_id: str,
     file_path: str,
 ) -> None:
 
-    try:
-        model_info = {
-            "run_id": run_id,
-            "model_path": model_path,
-        }
+    model_info = {
+        "run_id": run_id,
+        "model_id": model_id,
+    }
 
-        os.makedirs(
-            os.path.dirname(file_path),
-            exist_ok=True,
-        )
+    os.makedirs(
+        os.path.dirname(file_path),
+        exist_ok=True,
+    )
 
-        with open(
-            file_path,
-            "w",
-        ) as file:
-            json.dump(
-                model_info,
-                file,
-                indent=4,
-            )
+    with open(file_path, "w") as file:
+        json.dump(model_info, file, indent=4)
 
-        logger.debug(
-            "Model information saved to %s",
-            file_path,
-        )
-
-    except Exception as e:
-        logger.error(
-            "Error saving model information: %s",
-            e,
-        )
-        raise
+    logger.debug(
+        "Model information saved to %s",
+        file_path,
+    )
 
 
 def main():
-
     try:
         mlflow.set_experiment(
             "Emotion Detection - DVC Pipeline"
@@ -270,20 +199,18 @@ def main():
 
             mlflow.log_metrics(metrics)
 
-            if hasattr(model, "get_params"):
+            mlflow.log_params(
+                model.get_params()
+            )
 
-                mlflow.log_params(
-                    model.get_params()
-                )
-
-            mlflow.sklearn.log_model(
+            logged_model = mlflow.sklearn.log_model(
                 model,
                 name="model",
             )
 
             save_model_info(
                 run.info.run_id,
-                "models/model.pkl",
+                logged_model.model_id,
                 "reports/model_info.json",
             )
 
@@ -296,18 +223,20 @@ def main():
             )
 
             mlflow.log_artifact(
-                "model_evaluation_errors.log"
-            )
-
-            mlflow.log_artifact(
                 __file__,
                 artifact_path="source",
             )
 
+            if os.path.exists(
+                "model_evaluation_errors.log"
+            ):
+                mlflow.log_artifact(
+                    "model_evaluation_errors.log"
+                )
+
             logger.info(
                 "Model evaluation completed successfully"
             )
-
             logger.info(
                 "Metrics: %s",
                 metrics,
