@@ -88,7 +88,7 @@ def register_model(
         client.transition_model_version_stage(
             name=model_name,
             version=model_version.version,
-            stage="Staging",
+            stage="Production"
         )
 
         logger.info(
