@@ -1,4 +1,4 @@
-import json
+import json,os
 import logging
 
 import dagshub
@@ -6,16 +6,20 @@ import mlflow
 from mlflow.tracking import MlflowClient
 
 
-dagshub.init(
-    repo_owner="Div7anshKushwaha",
-    repo_name="Emotion-Detection-MLOps",
-    mlflow=True,
-)
+dagshub_token = os.getenv("DAGSHUB_PAT")
+dagshub_username = os.getenv("DAGSHUB_USERNAME")
+
+if not dagshub_token:
+    raise EnvironmentError("DAGSHUB_PAT environment variable is not set")
+
+if not dagshub_username:
+    raise EnvironmentError("DAGSHUB_USERNAME environment variable is not set")
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_username
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 
 mlflow.set_tracking_uri(
-    "https://dagshub.com/"
-    "Div7anshKushwaha/"
-    "Emotion-Detection-MLOps.mlflow"
+    "https://dagshub.com/Div7anshKushwaha/Emotion-Detection-MLOps.mlflow"
 )
 
 
