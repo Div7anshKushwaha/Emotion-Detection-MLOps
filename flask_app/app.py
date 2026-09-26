@@ -1,7 +1,6 @@
 import re
 import string
 
-import dagshub
 import joblib
 import mlflow
 import pandas as pd
@@ -13,21 +12,13 @@ from nltk.stem import WordNetLemmatizer
 
 app = Flask(__name__)
 
-
-dagshub.init(
-    repo_owner="Div7anshKushwaha",
-    repo_name="Emotion-Detection-MLOps",
-    mlflow=True,
-)
-
 mlflow.set_tracking_uri(
     "https://dagshub.com/"
     "Div7anshKushwaha/"
     "Emotion-Detection-MLOps.mlflow"
 )
 
-
-MODEL_URI = "models:/EmotionDetectionModel/1"
+MODEL_URI = "models:/EmotionDetectionModel/4"
 
 model = mlflow.pyfunc.load_model(MODEL_URI)
 vectorizer = joblib.load("models/vectorizer.pkl")
@@ -103,7 +94,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "model": "EmotionDetectionModel",
-        "version": 1,
+        "version": 4,
     })
 
 
@@ -125,6 +116,8 @@ def predict():
         })
 
     except Exception as e:
+        app.logger.exception("Prediction failed")
+
         return jsonify({
             "error": str(e)
         }), 500
@@ -150,6 +143,8 @@ def predict_ui():
         )
 
     except Exception as e:
+        app.logger.exception("UI prediction failed")
+
         return render_template(
             "index.html",
             text=text,
