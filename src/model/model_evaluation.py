@@ -2,7 +2,6 @@ import json
 import logging
 import os
 
-import dagshub
 import joblib
 import mlflow
 import mlflow.sklearn
@@ -15,8 +14,6 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-
-
 
 dagshub_token = os.getenv("DAGSHUB_PAT")
 dagshub_username = os.getenv("DAGSHUB_USERNAME")
@@ -33,7 +30,6 @@ os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 mlflow.set_tracking_uri(
     "https://dagshub.com/Div7anshKushwaha/Emotion-Detection-MLOps.mlflow"
 )
-
 
 logger = logging.getLogger("model_evaluation")
 logger.setLevel(logging.DEBUG)

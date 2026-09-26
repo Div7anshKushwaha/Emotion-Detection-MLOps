@@ -1,10 +1,9 @@
-import json,os
+import json
 import logging
+import os
 
-import dagshub
 import mlflow
 from mlflow.tracking import MlflowClient
-
 
 dagshub_token = os.getenv("DAGSHUB_PAT")
 dagshub_username = os.getenv("DAGSHUB_USERNAME")
@@ -21,7 +20,6 @@ os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
 mlflow.set_tracking_uri(
     "https://dagshub.com/Div7anshKushwaha/Emotion-Detection-MLOps.mlflow"
 )
-
 
 logger = logging.getLogger("model_registration")
 logger.setLevel(logging.DEBUG)
@@ -76,11 +74,8 @@ def register_model(
     model_name: str,
     model_info: dict,
 ) -> None:
-
     try:
-        model_uri = (
-            f"models:/{model_info['model_id']}"
-        )
+        model_uri = f"models:/{model_info['model_id']}"
 
         model_version = mlflow.register_model(
             model_uri=model_uri,
@@ -92,19 +87,16 @@ def register_model(
         client.transition_model_version_stage(
             name=model_name,
             version=model_version.version,
-            stage="Production"
+            stage="Production",
         )
 
         logger.info(
-            "Model registered successfully: "
-            "%s version %s",
+            "Model registered successfully: %s version %s",
             model_name,
             model_version.version,
         )
 
-        logger.info(
-            "Model transitioned to Staging"
-        )
+        logger.info("Model transitioned to Production")
 
     except Exception as e:
         logger.error(
