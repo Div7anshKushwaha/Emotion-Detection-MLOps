@@ -2,12 +2,14 @@
 
 # Emotion Detection MLOps
 
-**A reproducible NLP pipeline for emotion classification with DVC, scikit-learn, and MLflow.**
+**A reproducible and deployable NLP pipeline for binary emotion classification.**
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![DVC](https://img.shields.io/badge/DVC-pipeline-945DD6?style=for-the-badge&logo=dvc&logoColor=white)](https://dvc.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-model-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-tracking-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![Flask](https://img.shields.io/badge/Flask-serving-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44e?style=for-the-badge)](LICENSE)
 
 [Repository](https://github.com/Div7anshKushwaha/Emotion-Detection-MLOps) · [DVC pipeline](dvc.yaml) · [Experiment parameters](params.yaml)
@@ -18,70 +20,128 @@
 
 ## Overview
 
-This project demonstrates how to organize a binary emotion-classification machine learning workflow as a reproducible pipeline rather than as a collection of notebook steps. The ingestion stage uses the `tweet_emotions.csv` source dataset and retains the `happiness` and `sadness` classes, mapping them to labels `1` and `0`. DVC tracks the dependencies, parameters, and generated artifacts for each stage. MLflow records the evaluation run, model parameters, metrics, and model artifact through the configured DagsHub tracking integration.
+This project is a learning-focused MLOps implementation for binary emotion classification. It uses the `tweet_emotions.csv` dataset and retains two classes:
 
-The repository is intended as an MLOps learning project and a foundation for future improvements such as stronger validation, automated testing, model serving, and deployment. The current pipeline should not be interpreted as a production-ready service.
+- `happiness` → `1`
 
-## What the pipeline does
+- `sadness` → `0`
 
-The workflow is defined in [`dvc.yaml`](dvc.yaml) and contains five stages:
+The project began as a reproducible DVC training pipeline and has been extended with experiment tracking, model registration, model promotion, Flask serving, automated tests, and GitHub Actions CI.
+
+The goal is not to claim production readiness. The goal is to understand the engineering practices required to move from a notebook-style experiment toward a repeatable ML system.
+
+## Current capabilities
+
+- Reproducible data and model pipeline with DVC
+
+- Configurable parameters through `params.yaml`
+
+- Data and model artifacts stored through DVC with an S3 remote
+
+- Experiment tracking with MLflow and DagsHub
+
+- Model parameters, metrics, artifacts, and run metadata logging
+
+- Model registration and version management
+
+- Model promotion through the MLflow/DagsHub registry
+
+- Flask web application and JSON prediction API
+
+- Health-check endpoint with model information
+
+- Input validation and application error logging
+
+- Automated model and Flask endpoint tests with pytest
+
+- GitHub Actions workflow for pipeline reproduction, testing, and model promotion
+
+- Pip dependency caching in CI
+
+## End-to-end workflow
 
 ```mermaid
 flowchart LR
-    A[Raw data] --> B[Data ingestion]
+    A[Source dataset] --> B[Data ingestion]
     B --> C[Text preprocessing]
     C --> D[Bag-of-Words features]
     D --> E[Logistic Regression]
-    E --> F[Evaluation]
-    F --> G[Metrics and model metadata]
+    E --> F[Model evaluation]
+    F --> G[MLflow tracking]
+    G --> H[Model registration]
+    H --> I[Model promotion]
+    I --> J[Flask prediction service]
 
     P[params.yaml] -. parameters .-> B
     P -. parameters .-> D
     P -. parameters .-> E
+    R[DVC and S3] -. artifacts .-> A
+    R -. artifacts .-> D
+    R -. artifacts .-> E
 ```
 
-1. **Data ingestion** splits the source dataset into training and test CSV files using a fixed random seed and configurable test size.
+## DVC pipeline
 
-1. **Data preprocessing** normalizes the text, removes URLs and mentions, strips hashtag symbols and non-alphabetic characters, normalizes whitespace, and removes empty records.
+The workflow is defined in [`dvc.yaml`](dvc.yaml) and contains six stages:
 
-1. **Feature engineering** fits a scikit-learn `CountVectorizer` on the training text and applies the learned vocabulary to both splits. The resulting Bag-of-Words matrices are saved as CSV files, together with the vectorizer.
+1. **Data ingestion** splits the source dataset into training and test CSV files using a configurable test size and random seed.
+
+1. **Data preprocessing** normalizes text, removes URLs and mentions, removes punctuation and non-alphabetic characters, normalizes whitespace, and removes empty records.
+
+1. **Feature engineering** fits a scikit-learn `CountVectorizer` on the training text and applies the learned vocabulary to both training and test data.
 
 1. **Model building** trains a scikit-learn `LogisticRegression` classifier using the parameters in `params.yaml`.
 
-1. **Model evaluation** calculates accuracy, precision, recall, F1 score, and ROC-AUC. It saves the metrics locally and logs the metrics, model parameters, model artifact, and run metadata to MLflow.
+1. **Model evaluation** calculates accuracy, precision, recall, F1 score, and ROC-AUC. It also logs the model and evaluation information to MLflow.
+
+1. **Model registration** registers the tracked model and stores the model metadata required for later promotion and serving.
+
+Run the complete pipeline with:
+
+```bash
+dvc repro
+```
 
 ## Repository structure
 
 ```
 Emotion-Detection-MLOps/
-├── .dvc/                         # DVC configuration
-├── data/                         # Generated raw and processed data (ignored by Git)
+├── .dvc/                         # DVC configuration and S3 remote
+├── .github/workflows/            # GitHub Actions CI workflow
+│   └── ci.yaml
+├── data/                         # Generated raw and processed data
 ├── docs/                         # Sphinx documentation sources
+├── flask_app/                    # Flask application for model serving
+│   ├── app.py
+│   ├── static/
+│   └── templates/
 ├── models/                       # Generated model and vectorizer artifacts
 ├── notebooks/                    # Experiments and exploratory work
 ├── reports/                      # Generated metrics and model metadata
 ├── src/
 │   ├── data/
-│   │   ├── data_ingestion.py     # Dataset split and ingestion
-│   │   └── data_preprocessing.py # Text cleaning
+│   │   ├── data_ingestion.py
+│   │   └── data_preprocessing.py
 │   ├── features/
-│   │   └── feature_engineering.py # Bag-of-Words feature creation
+│   │   └── feature_engineering.py
 │   ├── model/
-│   │   ├── model_building.py     # Logistic Regression training
-│   │   └── model_evaluation.py   # Metrics and MLflow logging
-│   └── visualization/            # Reserved for visualizations
-├── dvc.yaml                      # Pipeline stages
+│   │   ├── model_building.py
+│   │   ├── model_evaluation.py
+│   │   ├── register_model.py
+│   │   └── promote_model.py
+│   └── visualization/
+├── tests/                        # Model and Flask tests
+├── dvc.yaml                      # DVC pipeline definition
 ├── dvc.lock                      # Locked pipeline state
 ├── params.yaml                   # Reproducible experiment parameters
 ├── requirements.txt              # Python dependencies
 ├── setup.py                      # Package metadata
-├── test_environment.py           # Python environment check
-├── Makefile                      # Utility targets
-├── tox.ini                       # Lint configuration
+├── test_environment.py           # Environment check
+├── Makefile                      # Utility commands
 └── README.md
 ```
 
-Generated data and model artifacts are intentionally excluded from normal Git tracking. They are created when the DVC pipeline runs, or retrieved from a configured DVC remote when one is available.
+Generated datasets, models, and reports are not normally committed to Git. They are created by the DVC pipeline or retrieved from the configured DVC remote.
 
 ## Quick start
 
@@ -91,9 +151,13 @@ Generated data and model artifacts are intentionally excluded from normal Git tr
 
 - Git
 
-- A DVC installation
+- AWS credentials with access to the configured DVC S3 remote
 
-- Network access to retrieve the dataset used by the ingestion stage
+- DVC with S3 support
+
+- DagsHub/MLflow credentials for experiment tracking and model registry access
+
+- Network access to retrieve the source dataset and remote artifacts
 
 ### 1. Clone the repository
 
@@ -123,38 +187,58 @@ python -m venv .venv
 ```bash
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-python -m pip install dvc
-```
-
-Install the repository as an editable package if you want it available on the Python path:
-
-```bash
 python -m pip install -e .
 ```
 
-### 4. Validate the Python environment
+The requirements include DVC with S3 support, MLflow, DagsHub, Flask, scikit-learn, NLTK, pandas, and pytest.
+
+### 4. Configure credentials
+
+Do not commit credentials, tokens, or access keys to the repository. Configure the required values through environment variables or your CI secret manager.
+
+For local development, the project may require credentials for:
+
+- DagsHub MLflow tracking and model registry
+
+- AWS S3 DVC storage
+
+The GitHub Actions workflow expects these repository secrets:
+
+```
+DAGSHUB_USERNAME
+DAGSHUB_PAT
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+```
+
+The workflow uses the `ap-southeast-2` AWS region as currently configured in `.github/workflows/ci.yaml`.
+
+### 5. Validate the environment
 
 ```bash
 python test_environment.py
 ```
 
-### 5. Reproduce the pipeline
+### 6. Reproduce the pipeline
 
 ```bash
 dvc repro
 ```
 
-The pipeline creates the following primary outputs:
+The main outputs include:
 
-- `data/raw/train.csv` and `data/raw/test.csv`
-
-- `data/processed/train_processed.csv` and `data/processed/test_processed.csv`
-
-- `data/features/train_bow.csv` and `data/features/test_bow.csv`
-
-- `models/vectorizer.pkl` and `models/model.pkl`
-
-- `reports/metrics.json` and `reports/model_info.json`
+```
+data/raw/train.csv
+data/raw/test.csv
+data/processed/train_processed.csv
+data/processed/test_processed.csv
+data/features/train_bow.csv
+data/features/test_bow.csv
+models/vectorizer.pkl
+models/model.pkl
+reports/metrics.json
+reports/model_info.json
+```
 
 ## Inspect the pipeline and metrics
 
@@ -165,14 +249,14 @@ dvc dag
 # Show whether stages are up to date
 dvc status
 
-# Display the metrics file tracked by DVC
+# Display tracked metrics
 dvc metrics show
 
 # Compare metrics between Git revisions
 dvc metrics diff
 ```
 
-You can also inspect the generated files directly:
+Inspect generated metadata directly:
 
 ```bash
 cat reports/metrics.json
@@ -196,66 +280,221 @@ model_building:
   max_iter: 1000
 ```
 
-Edit a parameter, then reproduce the workflow:
+After changing a parameter, reproduce the affected stages:
 
 ```bash
-# Example: change the vocabulary size in params.yaml
 dvc repro
 dvc metrics show
 ```
 
-DVC uses the parameter values recorded in `dvc.lock` to determine which stages need to be rerun. Commit the parameter change, lock-file update, and any relevant metric comparison together when preserving an experiment.
+DVC uses the parameter values recorded in `dvc.lock` to determine which stages need to be rerun.
 
-## MLflow and DagsHub tracking
+## MLflow and DagsHub
 
-The evaluation stage initializes DagsHub and configures MLflow for the repository’s DagsHub experiment. During evaluation, the code logs:
+The evaluation stage configures MLflow with the project’s DagsHub tracking backend. It logs:
 
 - Accuracy, precision, recall, F1 score, and ROC-AUC
 
 - The trained scikit-learn model
 
-- Model parameters returned by `get_params()`
+- Model parameters from `get_params()`
 
 - `reports/metrics.json`
 
 - `reports/model_info.json`
 
-- The evaluation error log
+- Source and error information when available
 
-The tracking configuration is implemented in [`src/model/model_evaluation.py`](src/model/model_evaluation.py). To use a different MLflow tracking backend, update that configuration and provide the credentials required by the selected backend. Do not commit credentials or tokens to the repository.
+The model-registration stage uses the tracked model metadata to register a model version. The promotion step moves an approved model version through the configured registry stage for serving.
+
+Run the registry scripts manually when required:
+
+```bash
+python src/model/register_model.py
+python src/model/promote_model.py
+```
+
+Model registry operations require valid DagsHub/MLflow credentials. Keep all credentials outside the source code.
+
+## Flask model serving
+
+The Flask application is located in [`flask_app/app.py`](flask_app/app.py). It loads the configured version of the registered MLflow model and the saved vectorizer, then exposes both browser and JSON interfaces.
+
+Start the application with:
+
+```bash
+python flask_app/app.py
+```
+
+The service listens on `http://localhost:5000` by default.
+
+### Available endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/` | GET | Renders the prediction page |
+| `/health` | GET | Returns service and model health information |
+| `/predict` | POST | Returns an emotion prediction from JSON input |
+| `/predict-ui` | POST | Handles form submissions from the web interface |
+
+### Health check
+
+```bash
+curl http://localhost:5000/health
+```
+
+Example response:
+
+```json
+{
+  "status": "healthy",
+  "model": "EmotionDetectionModel",
+  "version": 4
+}
+```
+
+The reported version is configured in the Flask application and should be kept in sync with the model version promoted for serving.
+
+### Prediction request
+
+```bash
+curl -X POST http://localhost:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I am very happy today"}'
+```
+
+Example response:
+
+```json
+{
+  "text": "I am very happy today",
+  "emotion": "Happiness"
+}
+```
+
+A request without a `text` field returns HTTP `400` with a validation error.
+
+## Automated tests
+
+Run all tests with:
+
+```bash
+python -m pytest tests/ -v
+```
+
+The current tests cover:
+
+- Flask home route
+
+- Flask health endpoint
+
+- Successful prediction requests
+
+- Missing-input validation
+
+- Model behavior and related checks included in `tests/`
+
+## Continuous integration
+
+The GitHub Actions workflow is defined in [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml). It runs on pushes and pull requests targeting `master`.
+
+The workflow currently:
+
+1. Checks out the repository
+
+1. Sets up Python 3.12
+
+1. Restores pip dependencies using GitHub Actions caching
+
+1. Installs project dependencies
+
+1. Reproduces the DVC pipeline
+
+1. Runs the automated tests
+
+1. Promotes the model through the registry
+
+The CI workflow requires the DagsHub and AWS secrets described in the credentials section.
 
 ## DVC remote storage
 
-This repository contains DVC metadata, but the local configuration does not define a shared DVC remote. Therefore, `dvc pull` and `dvc push` require a remote to be configured before they can be used.
+The repository is configured with an S3-backed DVC remote. The remote URL is stored in `.dvc/config`; credentials are intentionally not stored in Git.
 
-After choosing an artifact store, configure it with DVC. For example:
+To inspect the configured remotes:
 
 ```bash
-dvc remote add -d storage <remote-url>
+dvc remote list
+```
+
+To retrieve tracked artifacts:
+
+```bash
+dvc pull
+```
+
+To upload new tracked artifacts, use only an approved credentialed environment:
+
+```bash
 dvc push
 ```
 
-Replace `<remote-url>` with the URL for your approved storage backend. Keep access credentials outside the repository.
-
 ## Development commands
 
-The repository includes a Makefile with utility targets. List the available targets with:
+List available Makefile commands:
 
 ```bash
 make help
 ```
 
-The environment check can also be run through Make:
+Run the environment check through Make:
 
 ```bash
 make test_environment
 ```
 
-The project includes a minimal environment test. Additional unit, data-validation, and integration tests are recommended before using the pipeline in a production setting.
-
 ## Limitations and next steps
 
-The current repository focuses on training and evaluation. It does not yet provide a prediction API, a container image, a CI/CD workflow, a configured shared artifact store, or monitoring for data and model drift. Natural next steps include adding automated tests, validating input data and model artifacts, comparing additional text representations and classifiers, containerizing the workflow, and deploying a versioned inference service.
+This is an MLOps learning project and should not be interpreted as a production-ready service. The following areas remain open:
+
+- Docker containerisation
+
+- Continuous deployment after CI
+
+- Cloud deployment and infrastructure configuration
+
+- Stronger unit, integration, and end-to-end test coverage
+
+- Data-quality validation
+
+- Input-data drift monitoring
+
+- Model-performance monitoring after labelled feedback becomes available
+
+- Alerting and operational dashboards
+
+- Canary or staged deployment
+
+- Automated rollback to the last known-good model
+
+- API authentication, rate limiting, and production security hardening
+
+The next planned milestone is to containerise the Flask service and connect the tested CI workflow to a controlled deployment process.
+
+## Learning outcomes
+
+This project has been an exercise in moving from a standalone ML experiment toward a maintainable ML system. The main lessons so far are:
+
+- Reproducibility matters as much as model training.
+
+- Parameters, data, models, and metrics should be traceable.
+
+- A model registry provides a controlled path from training to serving.
+
+- Application behavior should be tested, not only model accuracy.
+
+- CI helps enforce repeatable checks across environments.
+
+- Serving a model introduces operational concerns beyond the training script.
 
 ## Author
 
@@ -272,12 +511,14 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## References
 
-[1]: https://dvc.org/doc "DVC Documentation"
+- [DVC Documentation](https://dvc.org/doc)
 
-[2]: https://mlflow.org/docs/latest/ "MLflow Documentation"
+- [MLflow Documentation](https://mlflow.org/docs/latest/)
 
-[3]: https://dagshub.com/docs/integration_guide/mlflow_tracking/ "DagsHub MLflow Tracking"
+- [DagsHub MLflow Tracking](https://dagshub.com/docs/integration_guide/mlflow_tracking/)
 
-[4]: https://scikit-learn.org/stable/ "scikit-learn Documentation"
+- [scikit-learn Documentation](https://scikit-learn.org/stable/)
 
-[5]: https://docs.python.org/3/ "Python Documentation"
+- [Flask Documentation](https://flask.palletsprojects.com/)
+
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
