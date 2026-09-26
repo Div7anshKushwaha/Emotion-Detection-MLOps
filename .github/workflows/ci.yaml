@@ -37,3 +37,6 @@ jobs:
 
       - name: Run DVC pipeline
         run: dvc repro
+
+      - name: Run model tests
+        run: pytest tests/test_model.py -v
