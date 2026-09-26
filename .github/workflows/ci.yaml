@@ -40,3 +40,6 @@ jobs:
 
       - name: Run model tests
         run: pytest tests/test_model.py -v
+        
+      - name: Promote model
+        run: python src/model/promote_model.py  

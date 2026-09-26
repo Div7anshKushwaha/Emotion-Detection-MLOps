@@ -3,7 +3,6 @@ import logging
 import os
 
 import mlflow
-from mlflow.tracking import MlflowClient
 
 dagshub_token = os.getenv("DAGSHUB_PAT")
 dagshub_username = os.getenv("DAGSHUB_USERNAME")
@@ -48,32 +47,20 @@ def load_model_info(file_path: str) -> dict:
         with open(file_path, "r") as file:
             model_info = json.load(file)
 
-        logger.debug(
-            "Model info loaded from %s",
-            file_path,
-        )
+        logger.debug("Model info loaded from %s", file_path)
 
         return model_info
 
     except FileNotFoundError:
-        logger.error(
-            "Model info file not found: %s",
-            file_path,
-        )
+        logger.error("Model info file not found: %s", file_path)
         raise
 
     except Exception as e:
-        logger.error(
-            "Error loading model info: %s",
-            e,
-        )
+        logger.error("Error loading model info: %s", e)
         raise
 
 
-def register_model(
-    model_name: str,
-    model_info: dict,
-) -> None:
+def register_model(model_name: str, model_info: dict) -> None:
     try:
         model_uri = f"models:/{model_info['model_id']}"
 
@@ -82,27 +69,14 @@ def register_model(
             name=model_name,
         )
 
-        client = MlflowClient()
-
-        client.transition_model_version_stage(
-            name=model_name,
-            version=model_version.version,
-            stage="Production",
-        )
-
         logger.info(
             "Model registered successfully: %s version %s",
             model_name,
             model_version.version,
         )
 
-        logger.info("Model transitioned to Production")
-
     except Exception as e:
-        logger.error(
-            "Model registration failed: %s",
-            e,
-        )
+        logger.error("Model registration failed: %s", e)
         raise
 
 
