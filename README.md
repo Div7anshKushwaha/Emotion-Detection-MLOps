@@ -9,6 +9,7 @@
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-model-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![MLflow](https://img.shields.io/badge/MLflow-tracking-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![Docker](https://img.shields.io/badge/Docker-containerized-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Flask](https://img.shields.io/badge/Flask-serving-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/License-MIT-2ea44e?style=for-the-badge)](LICENSE)
 
@@ -26,21 +27,21 @@ This project is a learning-focused MLOps implementation for binary emotion class
 
 - `sadness` → `0`
 
-The project began as a reproducible DVC training pipeline and has been extended with experiment tracking, model registration, model promotion, Flask serving, automated tests, and GitHub Actions CI.
+The project began as a reproducible DVC training pipeline and has been extended with experiment tracking, model registration, model promotion, Flask serving, automated tests, GitHub Actions CI, Docker image creation, and Docker Hub publishing.
 
-The goal is not to claim production readiness. The goal is to understand the engineering practices required to move from a notebook-style experiment toward a repeatable ML system.
+The goal is not to claim production readiness. The goal is to understand the engineering practices required to move from a notebook-style experiment toward a repeatable, testable, and deployable ML system.
 
 ## Current capabilities
 
 - Reproducible data and model pipeline with DVC
 
-- Configurable parameters through `params.yaml`
+- Configurable experiments through `params.yaml`
 
-- Data and model artifacts stored through DVC with an S3 remote
+- DVC artifact storage using an S3 remote
 
 - Experiment tracking with MLflow and DagsHub
 
-- Model parameters, metrics, artifacts, and run metadata logging
+- Logging of model parameters, metrics, artifacts, and run metadata
 
 - Model registration and version management
 
@@ -54,9 +55,11 @@ The goal is not to claim production readiness. The goal is to understand the eng
 
 - Automated model and Flask endpoint tests with pytest
 
-- GitHub Actions workflow for pipeline reproduction, testing, and model promotion
+- GitHub Actions CI for pipeline reproduction, testing, and model promotion
 
-- Pip dependency caching in CI
+- Dockerized Flask inference service using Gunicorn
+
+- Automated Docker image build and push to Docker Hub
 
 ## End-to-end workflow
 
@@ -67,10 +70,12 @@ flowchart LR
     C --> D[Bag-of-Words features]
     D --> E[Logistic Regression]
     E --> F[Model evaluation]
-    F --> G[MLflow tracking]
+    F --> G[MLflow/DagsHub tracking]
     G --> H[Model registration]
     H --> I[Model promotion]
-    I --> J[Flask prediction service]
+    I --> J[Flask API]
+    J --> K[Docker image]
+    K --> L[Docker Hub]
 
     P[params.yaml] -. parameters .-> B
     P -. parameters .-> D
@@ -94,7 +99,7 @@ The workflow is defined in [`dvc.yaml`](dvc.yaml) and contains six stages:
 
 1. **Model evaluation** calculates accuracy, precision, recall, F1 score, and ROC-AUC. It also logs the model and evaluation information to MLflow.
 
-1. **Model registration** registers the tracked model and stores the model metadata required for later promotion and serving.
+1. **Model registration** registers the tracked model and stores the metadata required for later promotion and serving.
 
 Run the complete pipeline with:
 
@@ -106,18 +111,23 @@ dvc repro
 
 ```
 Emotion-Detection-MLOps/
-├── .dvc/                         # DVC configuration and S3 remote
-├── .github/workflows/            # GitHub Actions CI workflow
-│   └── ci.yaml
-├── data/                         # Generated raw and processed data
-├── docs/                         # Sphinx documentation sources
-├── flask_app/                    # Flask application for model serving
-│   ├── app.py
-│   ├── static/
-│   └── templates/
-├── models/                       # Generated model and vectorizer artifacts
-├── notebooks/                    # Experiments and exploratory work
-├── reports/                      # Generated metrics and model metadata
+├── .dvc/
+│   ├── .gitignore
+│   └── config                     # DVC configuration and S3 remote
+├── .github/workflows/
+│   └── ci.yaml                    # Test and Docker CI workflow
+├── data/                          # Generated raw, processed, and feature data
+├── docs/                          # Sphinx documentation sources
+├── flask_app/
+│   ├── __init__.py
+│   ├── app.py                     # Flask API and web application
+│   ├── requirements.txt           # Runtime dependencies for serving
+│   ├── static/style.css           # Web UI styling
+│   └── templates/index.html        # Web UI template
+├── models/                        # Generated model and vectorizer artifacts
+├── notebooks/                     # Experiments and exploratory work
+├── references/                    # Reserved reference material
+├── reports/                       # Generated metrics and model metadata
 ├── src/
 │   ├── data/
 │   │   ├── data_ingestion.py
@@ -130,15 +140,21 @@ Emotion-Detection-MLOps/
 │   │   ├── register_model.py
 │   │   └── promote_model.py
 │   └── visualization/
-├── tests/                        # Model and Flask tests
-├── dvc.yaml                      # DVC pipeline definition
-├── dvc.lock                      # Locked pipeline state
-├── params.yaml                   # Reproducible experiment parameters
-├── requirements.txt              # Python dependencies
-├── setup.py                      # Package metadata
-├── test_environment.py           # Environment check
-├── Makefile                      # Utility commands
-└── README.md
+├── tests/
+│   ├── test_flask.py
+│   └── test_model.py
+├── Dockerfile                     # Container image definition
+├── .dockerignore                  # Docker build exclusions
+├── dvc.yaml                       # DVC pipeline definition
+├── dvc.lock                       # Locked DVC pipeline state
+├── params.yaml                    # Experiment parameters
+├── requirements.txt               # Main project dependencies
+├── setup.py                       # Package metadata
+├── test_environment.py            # Environment validation
+├── Makefile                       # Utility commands
+├── tox.ini                        # Tox/lint configuration
+├── README.md
+└── LICENSE
 ```
 
 Generated datasets, models, and reports are not normally committed to Git. They are created by the DVC pipeline or retrieved from the configured DVC remote.
@@ -151,11 +167,13 @@ Generated datasets, models, and reports are not normally committed to Git. They 
 
 - Git
 
+- Docker, if running the container locally
+
 - AWS credentials with access to the configured DVC S3 remote
 
 - DVC with S3 support
 
-- DagsHub/MLflow credentials for experiment tracking and model registry access
+- DagsHub/MLflow credentials for tracking and model registry access
 
 - Network access to retrieve the source dataset and remote artifacts
 
@@ -190,11 +208,11 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-The requirements include DVC with S3 support, MLflow, DagsHub, Flask, scikit-learn, NLTK, pandas, and pytest.
+The serving dependencies in `flask_app/requirements.txt` include Flask, Gunicorn, MLflow, NLTK, pandas, scikit-learn, and joblib.
 
 ### 4. Configure credentials
 
-Do not commit credentials, tokens, or access keys to the repository. Configure the required values through environment variables or your CI secret manager.
+Do not commit credentials, tokens, or access keys to the repository. Configure them through environment variables or your CI secret manager.
 
 For local development, the project may require credentials for:
 
@@ -209,9 +227,11 @@ DAGSHUB_USERNAME
 DAGSHUB_PAT
 AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
+DOCKER_HUB_USERNAME
+DOCKER_HUB_ACCESS_TOKEN
 ```
 
-The workflow uses the `ap-southeast-2` AWS region as currently configured in `.github/workflows/ci.yaml`.
+The workflow currently uses the `ap-southeast-2` AWS region.
 
 ### 5. Validate the environment
 
@@ -305,7 +325,7 @@ The evaluation stage configures MLflow with the project’s DagsHub tracking bac
 
 - Source and error information when available
 
-The model-registration stage uses the tracked model metadata to register a model version. The promotion step moves an approved model version through the configured registry stage for serving.
+The model-registration stage registers a model version. The promotion script moves the selected model through the configured registry stage for serving.
 
 Run the registry scripts manually when required:
 
@@ -353,7 +373,7 @@ Example response:
 }
 ```
 
-The reported version is configured in the Flask application and should be kept in sync with the model version promoted for serving.
+The reported version is configured in the Flask application and should remain synchronized with the model version promoted for serving.
 
 ### Prediction request
 
@@ -374,6 +394,39 @@ Example response:
 
 A request without a `text` field returns HTTP `400` with a validation error.
 
+## Docker
+
+The project includes a [`Dockerfile`](Dockerfile) for packaging the Flask inference service. The image uses Python 3.12 slim and starts the application with Gunicorn on port `5000`.
+
+Build the image locally:
+
+```bash
+docker build -t emotion-detection:v2 .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 5000:5000 \\
+  -e DAGSHUB_USERNAME="$DAGSHUB_USERNAME" \\
+  -e DAGSHUB_PAT="$DAGSHUB_PAT" \\
+  emotion-detection:v2
+```
+
+Check the running service:
+
+```bash
+curl http://localhost:5000/health
+```
+
+The application loads the registered MLflow model from DagsHub at runtime and loads the generated vectorizer from `models/vectorizer.pkl`. Ensure the required DVC artifacts are available before building the image.
+
+The image is published to Docker Hub as:
+
+```
+div7ansh/emotion-detection:v2
+```
+
 ## Automated tests
 
 Run all tests with:
@@ -392,13 +445,15 @@ The current tests cover:
 
 - Missing-input validation
 
-- Model behavior and related checks included in `tests/`
+- Model behavior and related checks in `tests/`
 
 ## Continuous integration
 
 The GitHub Actions workflow is defined in [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml). It runs on pushes and pull requests targeting `master`.
 
-The workflow currently:
+The workflow has two jobs:
+
+### Test job
 
 1. Checks out the repository
 
@@ -414,25 +469,37 @@ The workflow currently:
 
 1. Promotes the model through the registry
 
-The CI workflow requires the DagsHub and AWS secrets described in the credentials section.
+### Docker job
+
+The Docker job runs after the test job succeeds. It:
+
+1. Checks out the repository
+
+1. Logs in to Docker Hub
+
+1. Builds the Docker image
+
+1. Pushes `div7ansh/emotion-detection:v2` to Docker Hub
+
+The Docker Hub credentials are supplied through GitHub repository secrets. The current workflow is a CI and image-publishing workflow; it does not yet deploy the container to a cloud environment.
 
 ## DVC remote storage
 
 The repository is configured with an S3-backed DVC remote. The remote URL is stored in `.dvc/config`; credentials are intentionally not stored in Git.
 
-To inspect the configured remotes:
+Inspect the configured remotes:
 
 ```bash
 dvc remote list
 ```
 
-To retrieve tracked artifacts:
+Retrieve tracked artifacts:
 
 ```bash
 dvc pull
 ```
 
-To upload new tracked artifacts, use only an approved credentialed environment:
+Upload new tracked artifacts from an approved credentialed environment:
 
 ```bash
 dvc push
@@ -452,17 +519,37 @@ Run the environment check through Make:
 make test_environment
 ```
 
-## Limitations and next steps
+## Implemented versus future work
 
-This is an MLOps learning project and should not be interpreted as a production-ready service. The following areas remain open:
+### Implemented
 
-- Docker containerisation
+- DVC-based reproducible training pipeline
 
-- Continuous deployment after CI
+- S3-backed DVC artifact storage
+
+- MLflow/DagsHub experiment tracking
+
+- Model registration and promotion
+
+- Flask model serving
+
+- Pytest coverage for model and API behavior
+
+- GitHub Actions CI
+
+- Docker image creation
+
+- Docker Hub publishing
+
+### Future work
+
+This is still a learning project and should not be interpreted as production-ready. Future improvements include:
+
+- Continuous deployment after image publishing
 
 - Cloud deployment and infrastructure configuration
 
-- Stronger unit, integration, and end-to-end test coverage
+- Stronger integration and end-to-end test coverage
 
 - Data-quality validation
 
@@ -478,23 +565,23 @@ This is an MLOps learning project and should not be interpreted as a production-
 
 - API authentication, rate limiting, and production security hardening
 
-The next planned milestone is to containerise the Flask service and connect the tested CI workflow to a controlled deployment process.
-
 ## Learning outcomes
 
-This project has been an exercise in moving from a standalone ML experiment toward a maintainable ML system. The main lessons so far are:
+This project has helped demonstrate how an ML model moves beyond training:
 
-- Reproducibility matters as much as model training.
+- DVC makes data and pipeline execution reproducible.
 
-- Parameters, data, models, and metrics should be traceable.
+- MLflow and DagsHub make experiments and model versions traceable.
 
 - A model registry provides a controlled path from training to serving.
 
-- Application behavior should be tested, not only model accuracy.
+- Flask exposes the model through an application interface.
 
-- CI helps enforce repeatable checks across environments.
+- Pytest validates application and model behavior.
 
-- Serving a model introduces operational concerns beyond the training script.
+- GitHub Actions automates repeatable checks.
+
+- Docker packages the inference service into a portable runtime image.
 
 ## Author
 
@@ -520,5 +607,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 - [scikit-learn Documentation](https://scikit-learn.org/stable/)
 
 - [Flask Documentation](https://flask.palletsprojects.com/)
+
+- [Docker Documentation](https://docs.docker.com/)
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
