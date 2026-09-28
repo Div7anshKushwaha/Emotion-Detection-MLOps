@@ -38,7 +38,7 @@ jobs:
       - name: Run DVC pipeline
         run: dvc repro
 
-      - name: Verify model artifacts
+      - name: Verify DVC outputs
         run: |
           ls -la models
           test -f models/vectorizer.pkl
@@ -75,8 +75,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run DVC pipeline
-        run: dvc repro
+      - name: Pull DVC artifacts
+        run: dvc pull
 
       - name: Verify model artifacts
         run: |
