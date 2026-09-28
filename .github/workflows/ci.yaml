@@ -38,6 +38,11 @@ jobs:
       - name: Run DVC pipeline
         run: dvc repro
 
+      - name: Verify model artifacts
+        run: |
+          ls -la models
+          test -f models/vectorizer.pkl
+
       - name: Run tests
         run: python -m pytest tests/ -v
 
