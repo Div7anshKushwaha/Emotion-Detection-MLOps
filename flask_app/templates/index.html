@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Emotion Detection</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="card">
+
+            <h1>Emotion Detection</h1>
+
+            <p class="subtitle">
+                AI-powered text emotion classification
+            </p>
+
+            <form
+                action="/predict-ui"
+                method="POST"
+            >
+
+                <textarea
+                    name="text"
+                    placeholder="Enter your text here..."
+                    required
+                >{{ text or "" }}</textarea>
+
+                <button type="submit">
+                    Analyze Emotion
+                </button>
+
+            </form>
+
+            {% if emotion %}
+
+            <div class="result">
+
+                <p>Detected Emotion</p>
+
+                <h2>{{ emotion }}</h2>
+
+            </div>
+
+            {% endif %}
+
+            {% if error %}
+
+            <div class="error">
+                {{ error }}
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        <div class="footer">
+            Powered by Flask + MLflow
+        </div>
+
+    </div>
+
+</body>
+</html>
